@@ -389,6 +389,40 @@ func TestExecTable(t *testing.T) {
 	}
 }
 
+func TestPopTableEntry(t *testing.T) {
+	dir := t.TempDir()
+	file := filepath.Join(dir, "demo.md")
+
+	if err := Init(file, "Test", "dev"); err != nil {
+		t.Fatal(err)
+	}
+
+	code := `printf 'name\tage\nAlice\t30\n'`
+	if _, _, err := Exec(file, "bash {table}", code, ""); err != nil {
+		t.Fatal(err)
+	}
+
+	// Verify table is in the file
+	content, _ := os.ReadFile(file)
+	if !strings.Contains(string(content), "| name | age |") {
+		t.Fatal("expected table in file before pop")
+	}
+
+	// Pop should remove both the code block and the table output
+	if err := Pop(file); err != nil {
+		t.Fatal(err)
+	}
+
+	content, _ = os.ReadFile(file)
+	s := string(content)
+	if strings.Contains(s, "{table}") {
+		t.Errorf("expected code block to be removed after pop, got: %s", s)
+	}
+	if strings.Contains(s, "| name | age |") {
+		t.Errorf("expected table to be removed after pop, got: %s", s)
+	}
+}
+
 func TestImageMarkdownRefBadPath(t *testing.T) {
 	dir := t.TempDir()
 	file := filepath.Join(dir, "demo.md")
