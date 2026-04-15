@@ -92,9 +92,13 @@ func Parse(r io.Reader) ([]Block, error) {
 				// Code block. Check for {image} suffix.
 				lang := info
 				isImage := false
+				isTable := false
 				if strings.HasSuffix(lang, " {image}") {
 					lang = strings.TrimSuffix(lang, " {image}")
 					isImage = true
+				} else if strings.HasSuffix(lang, " {table}") {
+					lang = strings.TrimSuffix(lang, " {table}")
+					isTable = true
 				}
 				var codeLines []string
 				for i < len(lines) && lines[i] != closingFence {
@@ -106,6 +110,7 @@ func Parse(r io.Reader) ([]Block, error) {
 					Lang:    lang,
 					Code:    strings.Join(codeLines, "\n"),
 					IsImage: isImage,
+					IsTable: isTable,
 				})
 			}
 
@@ -122,6 +127,20 @@ func Parse(r io.Reader) ([]Block, error) {
 				skipSeparator()
 				continue
 			}
+		}
+
+		// Table output: a pipe table (| header | ... | followed by | --- | ... |).
+		if isTableRow(lines[i]) && i+1 < len(lines) && isTableSeparator(lines[i+1]) {
+			headers := parseTableRow(lines[i])
+			i += 2 // past header and separator lines
+			var rows [][]string
+			for i < len(lines) && isTableRow(lines[i]) {
+				rows = append(rows, parseTableRow(lines[i]))
+				i++
+			}
+			blocks = append(blocks, TableOutputBlock{Headers: headers, Rows: rows})
+			skipSeparator()
+			continue
 		}
 
 		// Commentary block: accumulate lines until a fence, image output, or EOF.
@@ -148,6 +167,43 @@ func Parse(r io.Reader) ([]Block, error) {
 	}
 
 	return blocks, nil
+}
+
+// isTableRow returns true if the line looks like a markdown table row: | ... |
+func isTableRow(line string) bool {
+	trimmed := strings.TrimSpace(line)
+	return strings.HasPrefix(trimmed, "|") && strings.HasSuffix(trimmed, "|")
+}
+
+// isTableSeparator returns true if the line is a markdown table separator row
+// like | --- | --- |.
+func isTableSeparator(line string) bool {
+	if !isTableRow(line) {
+		return false
+	}
+	cells := parseTableRow(line)
+	for _, cell := range cells {
+		stripped := strings.TrimSpace(cell)
+		stripped = strings.Trim(stripped, ":-")
+		if stripped != "" {
+			return false
+		}
+	}
+	return len(cells) > 0
+}
+
+// parseTableRow splits a pipe-delimited table row into cell values.
+func parseTableRow(line string) []string {
+	trimmed := strings.TrimSpace(line)
+	// Strip leading and trailing pipes
+	trimmed = strings.TrimPrefix(trimmed, "|")
+	trimmed = strings.TrimSuffix(trimmed, "|")
+	parts := strings.Split(trimmed, "|")
+	cells := make([]string, len(parts))
+	for i, p := range parts {
+		cells[i] = strings.TrimSpace(p)
+	}
+	return cells
 }
 
 // parseImageRef extracts the alt text and filename from a markdown image

@@ -36,3 +36,19 @@ func TestTitleBlock(t *testing.T) {
 		t.Errorf("expected type title, got %s", b.Type())
 	}
 }
+
+func TestTableOutputBlock(t *testing.T) {
+	b := TableOutputBlock{
+		Headers: []string{"name", "age"},
+		Rows:    [][]string{{"Alice", "30"}, {"Bob", "25"}},
+	}
+	if b.Type() != "output-table" {
+		t.Errorf("expected type output-table, got %s", b.Type())
+	}
+	if len(b.Headers) != 2 {
+		t.Errorf("expected 2 headers, got %d", len(b.Headers))
+	}
+	if len(b.Rows) != 2 {
+		t.Errorf("expected 2 rows, got %d", len(b.Rows))
+	}
+}

@@ -158,6 +158,75 @@ func TestWriteTitleWithDocumentIDNoVersion(t *testing.T) {
 	}
 }
 
+func TestWriteTableCodeBlock(t *testing.T) {
+	var buf strings.Builder
+	blocks := []Block{
+		CodeBlock{Lang: "python3", Code: "print('hello')", IsTable: true},
+	}
+	err := Write(&buf, blocks)
+	if err != nil {
+		t.Fatal(err)
+	}
+	expected := "```python3 {table}\nprint('hello')\n```\n"
+	if buf.String() != expected {
+		t.Errorf("expected:\n%q\ngot:\n%q", expected, buf.String())
+	}
+}
+
+func TestWriteTableOutputBlock(t *testing.T) {
+	var buf strings.Builder
+	blocks := []Block{
+		TableOutputBlock{
+			Headers: []string{"name", "age"},
+			Rows:    [][]string{{"Alice", "30"}, {"Bob", "25"}},
+		},
+	}
+	err := Write(&buf, blocks)
+	if err != nil {
+		t.Fatal(err)
+	}
+	expected := "| name | age |\n| --- | --- |\n| Alice | 30 |\n| Bob | 25 |\n"
+	if buf.String() != expected {
+		t.Errorf("expected:\n%s\ngot:\n%s", expected, buf.String())
+	}
+}
+
+func TestWriteTableOutputBlockSingleColumn(t *testing.T) {
+	var buf strings.Builder
+	blocks := []Block{
+		TableOutputBlock{
+			Headers: []string{"count"},
+			Rows:    [][]string{{"42"}},
+		},
+	}
+	err := Write(&buf, blocks)
+	if err != nil {
+		t.Fatal(err)
+	}
+	expected := "| count |\n| --- |\n| 42 |\n"
+	if buf.String() != expected {
+		t.Errorf("expected:\n%s\ngot:\n%s", expected, buf.String())
+	}
+}
+
+func TestWriteTableOutputBlockEmpty(t *testing.T) {
+	var buf strings.Builder
+	blocks := []Block{
+		TableOutputBlock{
+			Headers: []string{"name", "age"},
+			Rows:    [][]string{},
+		},
+	}
+	err := Write(&buf, blocks)
+	if err != nil {
+		t.Fatal(err)
+	}
+	expected := "| name | age |\n| --- | --- |\n"
+	if buf.String() != expected {
+		t.Errorf("expected:\n%s\ngot:\n%s", expected, buf.String())
+	}
+}
+
 func TestWriteFullDocument(t *testing.T) {
 	var buf strings.Builder
 	blocks := []Block{

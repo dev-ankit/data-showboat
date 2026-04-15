@@ -27,6 +27,7 @@ type CodeBlock struct {
 	Lang    string
 	Code    string
 	IsImage bool
+	IsTable bool
 }
 
 func (b CodeBlock) Type() string { return "code" }
@@ -45,3 +46,11 @@ type ImageOutputBlock struct {
 }
 
 func (b ImageOutputBlock) Type() string { return "output-image" }
+
+// TableOutputBlock is captured tabular output rendered as a markdown table.
+type TableOutputBlock struct {
+	Headers []string
+	Rows    [][]string
+}
+
+func (b TableOutputBlock) Type() string { return "output-table" }
