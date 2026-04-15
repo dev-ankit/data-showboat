@@ -44,6 +44,8 @@ func writeBlock(w io.Writer, block Block) error {
 		lang := b.Lang
 		if b.IsImage {
 			lang += " {image}"
+		} else if b.IsTable {
+			lang += " {table}"
 		}
 		_, err := fmt.Fprintf(w, "```%s\n%s\n```\n", lang, b.Code)
 		return err
@@ -54,6 +56,23 @@ func writeBlock(w io.Writer, block Block) error {
 	case ImageOutputBlock:
 		_, err := fmt.Fprintf(w, "![%s](%s)\n", b.AltText, b.Filename)
 		return err
+	case TableOutputBlock:
+		if _, err := fmt.Fprintf(w, "| %s |\n", strings.Join(b.Headers, " | ")); err != nil {
+			return err
+		}
+		seps := make([]string, len(b.Headers))
+		for i := range seps {
+			seps[i] = "---"
+		}
+		if _, err := fmt.Fprintf(w, "| %s |\n", strings.Join(seps, " | ")); err != nil {
+			return err
+		}
+		for _, row := range b.Rows {
+			if _, err := fmt.Fprintf(w, "| %s |\n", strings.Join(row, " | ")); err != nil {
+				return err
+			}
+		}
+		return nil
 	default:
 		return fmt.Errorf("unknown block type: %T", block)
 	}

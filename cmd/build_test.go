@@ -348,6 +348,81 @@ func TestImageMarkdownRefEscapedBang(t *testing.T) {
 	}
 }
 
+func TestExecTable(t *testing.T) {
+	dir := t.TempDir()
+	file := filepath.Join(dir, "demo.md")
+
+	if err := Init(file, "Test", "dev"); err != nil {
+		t.Fatal(err)
+	}
+
+	code := `printf 'name\tage\nAlice\t30\nBob\t25\n'`
+	output, exitCode, err := Exec(file, "bash {table}", code, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if exitCode != 0 {
+		t.Errorf("expected exit code 0, got %d", exitCode)
+	}
+	if output != "name\tage\nAlice\t30\nBob\t25\n" {
+		t.Errorf("unexpected output: %q", output)
+	}
+
+	content, err := os.ReadFile(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	s := string(content)
+	if !strings.Contains(s, "```bash {table}") {
+		t.Errorf("expected table code block in file, got: %s", s)
+	}
+	if !strings.Contains(s, "| name | age |") {
+		t.Errorf("expected table header in file, got: %s", s)
+	}
+	if !strings.Contains(s, "| Alice | 30 |") {
+		t.Errorf("expected table row in file, got: %s", s)
+	}
+	// Should NOT contain an output fence
+	if strings.Contains(s, "```output") {
+		t.Errorf("should not have output fence for table exec, got: %s", s)
+	}
+}
+
+func TestPopTableEntry(t *testing.T) {
+	dir := t.TempDir()
+	file := filepath.Join(dir, "demo.md")
+
+	if err := Init(file, "Test", "dev"); err != nil {
+		t.Fatal(err)
+	}
+
+	code := `printf 'name\tage\nAlice\t30\n'`
+	if _, _, err := Exec(file, "bash {table}", code, ""); err != nil {
+		t.Fatal(err)
+	}
+
+	// Verify table is in the file
+	content, _ := os.ReadFile(file)
+	if !strings.Contains(string(content), "| name | age |") {
+		t.Fatal("expected table in file before pop")
+	}
+
+	// Pop should remove both the code block and the table output
+	if err := Pop(file); err != nil {
+		t.Fatal(err)
+	}
+
+	content, _ = os.ReadFile(file)
+	s := string(content)
+	if strings.Contains(s, "{table}") {
+		t.Errorf("expected code block to be removed after pop, got: %s", s)
+	}
+	if strings.Contains(s, "| name | age |") {
+		t.Errorf("expected table to be removed after pop, got: %s", s)
+	}
+}
+
 func TestImageMarkdownRefBadPath(t *testing.T) {
 	dir := t.TempDir()
 	file := filepath.Join(dir, "demo.md")

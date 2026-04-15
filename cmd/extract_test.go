@@ -68,6 +68,32 @@ func TestExtractOutputOverride(t *testing.T) {
 	}
 }
 
+func TestExtractTable(t *testing.T) {
+	dir := t.TempDir()
+	file := filepath.Join(dir, "demo.md")
+
+	if err := Init(file, "Test", "dev"); err != nil {
+		t.Fatal(err)
+	}
+	code := `printf 'name\tage\nAlice\t30\n'`
+	if _, _, err := Exec(file, "bash {table}", code, ""); err != nil {
+		t.Fatal(err)
+	}
+
+	commands, err := Extract(file, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(commands) != 2 {
+		t.Fatalf("expected 2 commands, got %d: %v", len(commands), commands)
+	}
+	// The exec command should include {table} in the language
+	if !strings.Contains(commands[1], "{table}") {
+		t.Errorf("expected exec command to include {table}, got: %s", commands[1])
+	}
+}
+
 func TestExtractShellQuote(t *testing.T) {
 	tests := []struct {
 		input    string

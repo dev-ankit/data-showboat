@@ -33,12 +33,21 @@ func Note(file, text string) error {
 
 // Exec appends a code block, executes it, and appends the output.
 // It returns the captured output, the process exit code, and any error.
+// If lang has a " {table}" suffix, the output is parsed as TSV and rendered
+// as a markdown table instead of a plain output fence.
 func Exec(file, lang, code, workdir string) (string, int, error) {
 	if _, err := os.Stat(file); err != nil {
 		return "", 1, fmt.Errorf("file not found: %s", file)
 	}
 
-	output, exitCode, err := execpkg.Run(lang, code, workdir)
+	// Detect {table} annotation and strip it for execution.
+	isTable := strings.HasSuffix(lang, " {table}")
+	runLang := lang
+	if isTable {
+		runLang = strings.TrimSuffix(lang, " {table}")
+	}
+
+	output, exitCode, err := execpkg.Run(runLang, code, workdir)
 	if err != nil {
 		return "", exitCode, fmt.Errorf("running code: %w", err)
 	}
@@ -48,9 +57,18 @@ func Exec(file, lang, code, workdir string) (string, int, error) {
 		return "", exitCode, err
 	}
 
-	codeBlock := markdown.CodeBlock{Lang: lang, Code: code}
-	outputBlock := markdown.OutputBlock{Content: output}
-	blocks = append(blocks, codeBlock, outputBlock)
+	codeBlock := markdown.CodeBlock{Lang: runLang, Code: code, IsTable: isTable}
+	var outputBlk markdown.Block
+	if isTable {
+		headers, rows, parseErr := execpkg.ParseTSV(output)
+		if parseErr != nil {
+			return output, exitCode, fmt.Errorf("parsing table output: %w", parseErr)
+		}
+		outputBlk = markdown.TableOutputBlock{Headers: headers, Rows: rows}
+	} else {
+		outputBlk = markdown.OutputBlock{Content: output}
+	}
+	blocks = append(blocks, codeBlock, outputBlk)
 
 	if err := writeBlocks(file, blocks); err != nil {
 		return output, exitCode, err
@@ -58,7 +76,7 @@ func Exec(file, lang, code, workdir string) (string, int, error) {
 
 	docID := documentID(blocks)
 	if docID != "" {
-		postSection(docID, "exec", []markdown.Block{codeBlock, outputBlock})
+		postSection(docID, "exec", []markdown.Block{codeBlock, outputBlk})
 	}
 
 	return output, exitCode, nil

@@ -32,7 +32,7 @@ func Pop(file string) error {
 	last := blocks[len(blocks)-1]
 
 	switch last.(type) {
-	case markdown.OutputBlock, markdown.ImageOutputBlock:
+	case markdown.OutputBlock, markdown.ImageOutputBlock, markdown.TableOutputBlock:
 		// Output blocks are always preceded by a code block — remove both.
 		if len(blocks) >= 2 {
 			blocks = blocks[:len(blocks)-2]

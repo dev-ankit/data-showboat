@@ -9,6 +9,7 @@ Usage:
   showboat init <file> <title>             Create a new demo document
   showboat note <file> [text]              Append commentary (text or stdin)
   showboat exec <file> <lang> [code]       Run code and capture output
+  showboat exec <file> '<lang> {table}' [code]  Run code, render output as table
   showboat image <file> <path>             Copy image into document
   showboat image <file> '![alt](path)'   Copy image with alt text
   showboat pop <file>                      Remove the most recent entry
@@ -30,6 +31,25 @@ Exec output:
     hello
     $ echo $?
     1
+
+Table output:
+  When the language argument includes a {table} suffix, the exec command expects
+  the script to produce tab-separated (TSV) output. The first line is treated as
+  column headers and subsequent lines as data rows. The output is rendered as a
+  markdown pipe table instead of a plain output fence.
+
+  Any language works — the script just needs to print TSV to stdout:
+
+    $ showboat exec demo.md 'bash {table}' "printf 'name\tage\nAlice\t30\nBob\t25\n'"
+    name	age
+    Alice	30
+    Bob	25
+
+  Common patterns:
+    SQLite:   showboat exec d.md 'bash {table}' "sqlite3 -header -separator $'\t' db 'SELECT * FROM t'"
+    Postgres: showboat exec d.md 'bash {table}' "psql -A -F $'\t' -c 'SELECT * FROM t'"
+    Python:   showboat exec d.md 'python3 {table}' "import csv,sys; ..."
+    PySpark:  showboat exec d.md 'python3 {table}' "df.toPandas().to_csv(sys.stdout,sep='\t',index=False)"
 
 Image:
   The "image" command accepts a path to an image file or a markdown image
@@ -82,6 +102,9 @@ Example:
   # Redo it correctly
   showboat exec demo.md python3 "print('Hello from Python')"
 
+  # Run a query and render the result as a table
+  showboat exec demo.md 'python3 {table}' "print('name\tage\nAlice\t30\nBob\t25')"
+
   # Add a screenshot
   showboat image demo.md screenshot.png
 
@@ -117,6 +140,15 @@ Resulting markdown format:
   ```output
   Hello from Python
   ```
+
+  ```python3 {table}
+  print('name\tage\nAlice\t30\nBob\t25')
+  ```
+
+  | name | age |
+  | --- | --- |
+  | Alice | 30 |
+  | Bob | 25 |
 
   ```bash {image}
   screenshot.png
